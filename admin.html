@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AssetLog — Admin</title>
 <link rel="stylesheet" href="styles.css"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AssetLog"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#0D1B2A"/>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='5' y='3' width='14' height='18' rx='2' fill='%230D1B2A'/><path d='M9 3v2a2 2 0 0 0 4 0V3' fill='%230D1B2A' stroke='white' stroke-width='1.5'/><path d='M9 12l2 2 4-4' fill='none' stroke='%2322C55E' stroke-width='2' stroke-linecap='round'/></svg>"/>
 <!-- Offline libraries — no internet required -->
 <script src="libs/xlsx.min.js"></script>
@@ -86,6 +92,13 @@
     font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
   }
 </style>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+</script>
 </head>
 <body>
 

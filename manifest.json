@@ -1,0 +1,18 @@
+{
+  "name": "AssetLog",
+  "short_name": "AssetLog",
+  "description": "Asset Tracking System",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0D1B2A",
+  "theme_color": "#0D1B2A",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230D1B2A'/><rect x='60' y='30' width='72' height='132' rx='10' fill='white' opacity='0.15'/><rect x='60' y='30' width='72' height='132' rx='10' fill='none' stroke='white' stroke-width='6'/><path d='M84 30v14a12 12 0 0 0 24 0V30' fill='none' stroke='white' stroke-width='6'/><path d='M78 96l18 18 30-30' fill='none' stroke='%2322C55E' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
