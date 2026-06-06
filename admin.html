@@ -1351,9 +1351,29 @@
     openModal('profileModal');
   }
 
+  function toggleProfileDropdown(e) {
+    e.stopPropagation();
+    const d = document.getElementById('profileDropdown');
+    const open = d.style.display === 'block';
+    d.style.display = open ? 'none' : 'block';
+    document.getElementById('profileChevron').style.transform = open ? '' : 'rotate(180deg)';
+    if (!open) {
+      setTimeout(function(){ document.addEventListener('click', closeProfileDropdownOutside); }, 0);
+    }
+  }
+
+  function closeProfileDropdownOutside(e) {
+    const trigger = document.getElementById('profileTrigger');
+    if (!trigger.contains(e.target)) {
+      closeProfileDropdown();
+      document.removeEventListener('click', closeProfileDropdownOutside);
+    }
+  }
+
   function closeProfileDropdown() {
     const d = document.getElementById('profileDropdown');
-    if (d) d.classList.remove('open');
+    if (d) { d.style.display = 'none'; document.getElementById('profileChevron').style.transform = ''; }
+    document.removeEventListener('click', closeProfileDropdownOutside);
   }
 
   function saveProfile(e) {
