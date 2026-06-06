@@ -1448,15 +1448,14 @@
         : 'var(--text)';
       return `<tr>
         <td class="text-muted text-xs">${entries.length - i}</td>
-        <td class="text-sm" style="white-space:nowrap;">${dateStr}</td>
-        <td class="text-sm text-muted" style="white-space:nowrap;">${timeStr}</td>
+        <td class="text-sm" style="white-space:nowrap;">${dateStr}<div class="text-xs text-muted">${timeStr}</div></td>
         <td><span style="font-weight:600;color:${actionColor};font-size:0.85rem;">${e.action}</span></td>
         <td class="text-sm">${e.detail||''}</td>
         <td class="text-sm text-muted">${e.admin||''}</td>
       </tr>`;
     }).join('');
     el.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Date</th><th>Time</th><th>Action</th><th>Detail</th><th>Admin</th></tr></thead>
+      <thead><tr><th>#</th><th>Date &amp; Time</th><th>Action</th><th>Detail</th><th>Admin</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
   }
