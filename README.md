@@ -26,6 +26,7 @@ AssetLog lets employees check out company assets (vehicles, tablets, equipment, 
 **Login:**
 - Remember Me checkbox — saves username for next visit
 - Auto-restores active sessions (no re-login needed within 8 hours)
+- Password visibility toggle (eye icon) — click to show or hide the password field
 
 **Sidebar navigation:**
 
@@ -34,7 +35,7 @@ AssetLog lets employees check out company assets (vehicles, tablets, equipment, 
 | Dashboard | Live stats — total checkouts, currently out, available assets, today's activity. Click any card to drill into records. |
 | Records | Full checkout history with filters (type, asset, user, status, date range). Checked-out/returned columns show date + time stacked. Excel and PDF export. Admin can return any checked-out asset directly from the table. |
 | Reports | Report builder with custom date, type, and status filters. Preview table + export to Excel or PDF. |
-| Assets | Manage individual assets — add, edit, enable/disable, delete. Filter by type. |
+| Assets | Manage individual assets — add, edit, enable/disable, delete. Filter by type. **Admin Checkout** button lets admins check out any available asset under any name, phone, and email without going through the public page. |
 | Asset Types | Define asset categories with icon, color, and description. Enable/disable types. |
 | Users | Saved user directory with search. Bulk CSV import (download template → fill → upload). Add/edit/delete users manually. |
 | Settings | Admin accounts (add/edit/delete), My Credentials (change username/password), Branding (set department/company name shown on checkout page). |

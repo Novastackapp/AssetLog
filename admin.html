@@ -128,7 +128,15 @@ if ('serviceWorker' in navigator) {
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" class="form-control" id="loginPass" placeholder="••••••••" autocomplete="current-password" required/>
+        <div style="position:relative;">
+          <input type="password" class="form-control" id="loginPass" placeholder="••••••••" autocomplete="current-password" required style="padding-right:42px;"/>
+          <button type="button" onclick="toggleLoginPassword()" id="loginPassToggle" title="Show/hide password"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;display:flex;align-items:center;">
+            <svg id="loginPassEyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <input type="checkbox" id="rememberMe" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"/>
@@ -404,11 +412,19 @@ if ('serviceWorker' in navigator) {
           <h2>Assets</h2>
           <p class="text-muted text-sm">Manage individual assets</p>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <select class="form-control" id="assetTypeFilter" style="max-width:200px;" onchange="renderAssetList()">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+          <select class="form-control" id="assetTypeFilter" style="max-width:180px;" onchange="renderAssetList()">
             <option value="">All Types</option>
           </select>
-          <button class="btn btn-primary btn-sm" onclick="openAssetForm()">+ Add Asset</button>
+          <input type="text" class="form-control" id="assetSearch" placeholder="Search assets…"
+            style="max-width:200px;" oninput="renderAssetList()"/>
+          <div style="display:flex;gap:8px;margin-left:auto;">
+            <button class="btn btn-outline btn-sm" onclick="openAdminCheckoutModal()" style="color:var(--blue);border-color:var(--blue);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+              Admin Checkout
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openAssetForm()">+ Add Asset</button>
+          </div>
         </div>
         <div id="assetList"></div>
       </div>
@@ -784,6 +800,54 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
+<!-- ── MODAL: Admin Checkout ─────────────────────────────── -->
+<div class="modal-overlay hidden" id="adminCheckoutModal" onclick="closeOnOverlay(event,'adminCheckoutModal')">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Admin Checkout</div>
+        <div class="text-muted text-xs" style="margin-top:2px;">Check out an asset on behalf of anyone</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('adminCheckoutModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="adminCheckoutForm" onsubmit="submitAdminCheckout(event)" style="display:flex;flex-direction:column;gap:16px;" autocomplete="off">
+        <div class="form-group">
+          <label class="form-label">Asset <span style="color:var(--danger)">*</span></label>
+          <select class="form-control" id="acAsset" required>
+            <option value="">Select available asset…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name <span style="color:var(--danger)">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" class="form-control" id="acName" placeholder="Type name or search saved users…"
+              required oninput="acAdminSearch(this.value)" onblur="hideAcAdmin()" onfocus="acAdminSearch(this.value)"/>
+            <div class="autocomplete-list hidden" id="acAdminList"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone <span style="color:var(--danger)">*</span></label>
+            <input type="tel" class="form-control" id="acPhone" placeholder="e.g. 0917 123 4567" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span style="color:var(--danger)">*</span></label>
+            <input type="email" class="form-control" id="acEmail" placeholder="your@email.com" required/>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('adminCheckoutModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="document.getElementById('adminCheckoutForm').requestSubmit()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+        Check Out
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── MODAL: Delete Confirm ─────────────────────────────── -->
 <div class="modal-overlay hidden" id="deleteModal" onclick="closeOnOverlay(event,'deleteModal')">
   <div class="modal" style="max-width:400px;">
@@ -815,6 +879,16 @@ if ('serviceWorker' in navigator) {
       document.getElementById('rememberMe').checked = true;
     }
   })();
+
+  function toggleLoginPassword() {
+    const inp = document.getElementById('loginPass');
+    const icon = document.getElementById('loginPassEyeIcon');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    icon.innerHTML = show
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
 
   function auditActor(){ const s=AssetLog.admin.currentSession(); return s?s.username:'system'; }
 
@@ -1143,7 +1217,11 @@ if ('serviceWorker' in navigator) {
   /* ASSETS */
   function renderAssetList() {
     const typeId = (document.getElementById('assetTypeFilter')||{}).value || '';
-    const assets = typeId ? AssetLog.assets.getByType(typeId) : AssetLog.assets.getAll();
+    const q      = ((document.getElementById('assetSearch')||{}).value || '').trim().toLowerCase();
+    let assets   = typeId ? AssetLog.assets.getByType(typeId) : AssetLog.assets.getAll();
+    if (q) assets = assets.filter(a =>
+      a.name.toLowerCase().includes(q) || (a.identifier||'').toLowerCase().includes(q)
+    );
     const el = document.getElementById('assetList');
     if (!assets.length) { el.innerHTML = '<p class="text-muted text-sm">No assets yet.</p>'; return; }
     el.innerHTML = assets.map(a => {
@@ -1416,6 +1494,68 @@ if ('serviceWorker' in navigator) {
       showToast('Deleted.');
     };
     openModal('deleteModal');
+  }
+
+  /* ADMIN CHECKOUT */
+  /* Autocomplete — admin checkout name field */
+  var _acAdminT;
+  function acAdminSearch(val) {
+    clearTimeout(_acAdminT);
+    _acAdminT = setTimeout(function() {
+      var list = document.getElementById('acAdminList');
+      var q    = val.trim();
+      var res  = q ? AssetLog.users.search(q) : AssetLog.users.getAll().slice(0, 6);
+      if (!res.length) {
+        list.classList.add('hidden'); return;
+      }
+      list.innerHTML = res.slice(0, 8).map(function(u) {
+        var re = q ? new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi') : null;
+        var hl = re ? u.name.replace(re, '<strong style="color:var(--green);">$1</strong>') : u.name;
+        var sb = [u.phone, u.email].filter(Boolean).join(' · ') || 'No contact info';
+        return '<div class="autocomplete-item" onmousedown="fillAdminUser(\'' + encodeURIComponent(JSON.stringify({name:u.name,phone:u.phone,email:u.email})) + '\')">' +
+          '<div class="ac-name">' + hl + '</div><div class="ac-sub">' + sb + '</div></div>';
+      }).join('');
+      list.classList.remove('hidden');
+    }, 50);
+  }
+  function fillAdminUser(enc) {
+    var u = JSON.parse(decodeURIComponent(enc));
+    document.getElementById('acName').value  = u.name;
+    document.getElementById('acPhone').value = u.phone || '';
+    document.getElementById('acEmail').value = u.email || '';
+    document.getElementById('acAdminList').classList.add('hidden');
+    var nx = !u.phone ? 'acPhone' : !u.email ? 'acEmail' : null;
+    if (nx) setTimeout(function() { document.getElementById(nx).focus(); }, 50);
+  }
+  function hideAcAdmin() { setTimeout(function() { document.getElementById('acAdminList').classList.add('hidden'); }, 200); }
+
+  function openAdminCheckoutModal() {
+    const sel = document.getElementById('acAsset');
+    sel.innerHTML = '<option value="">Select available asset…</option>';
+    AssetLog.assets.getAll(true).filter(a => a.available).forEach(a => {
+      const type = AssetLog.types.get(a.typeId);
+      const icon = type ? type.icon + ' ' : '';
+      sel.add(new Option(icon + a.name + (a.identifier ? ' — ' + a.identifier : ''), a.id));
+    });
+    document.getElementById('adminCheckoutForm').reset();
+    openModal('adminCheckoutModal');
+    setTimeout(() => document.getElementById('acAsset').focus(), 150);
+  }
+
+  function submitAdminCheckout(e) {
+    e.preventDefault();
+    const assetId = document.getElementById('acAsset').value;
+    const name    = document.getElementById('acName').value.trim();
+    const phone   = document.getElementById('acPhone').value.trim();
+    const email   = document.getElementById('acEmail').value.trim();
+    if (!assetId || !name || !phone || !email) { showToast('Please fill all fields.', 'error'); return; }
+    const rec = AssetLog.records.checkout(assetId, { name, phone, email });
+    if (!rec) { showToast('Asset is no longer available.', 'error'); return; }
+    AssetLog.audit.log('Admin Checkout', `${rec.assetName} → ${name}`, auditActor());
+    closeModal('adminCheckoutModal');
+    renderAssetList();
+    renderDashboard();
+    showToast(`${rec.assetName} checked out to ${name}.`, 'success');
   }
 
   /* SETTINGS TABS */

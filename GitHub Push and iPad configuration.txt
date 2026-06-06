@@ -1,0 +1,13 @@
+git add .
+git commit -m "Update — describe what changed"
+git push
+
+On your iPad (Safari only — Chrome won't work for this):
+
+Open Safari and go to your site: https://YOUR_USERNAME.github.io/AssetLog/
+Tap the Share button (box with arrow at the bottom of Safari)
+Tap "Add to Home Screen"
+Name it AssetLog → tap Add
+
+The app icon will appear on your home screen. Tap it and it opens fullscreen with no browser UI, exactly like a native app. It works completely offline after the first load — all files are cached on the device.
+Important: localStorage is separate per device, so the data you set up on iPad stays on the iPad. If you want the same data on both devices, we'd need to add a cloud backend later.
