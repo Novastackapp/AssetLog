@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AssetLog — Admin</title>
+<link rel="stylesheet" href="styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='5' y='3' width='14' height='18' rx='2' fill='%230D1B2A'/><path d='M9 3v2a2 2 0 0 0 4 0V3' fill='%230D1B2A' stroke='white' stroke-width='1.5'/><path d='M9 12l2 2 4-4' fill='none' stroke='%2322C55E' stroke-width='2' stroke-linecap='round'/></svg>"/>
+<!-- Offline libraries — no internet required -->
+<script src="libs/xlsx.min.js"></script>
+<script src="libs/jspdf.min.js"></script>
+<script src="libs/jspdf.autotable.min.js"></script>
+<style>
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+  .records-count { font-size: 0.82rem; color: var(--muted); }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 6px;
+    border: 1.5px solid var(--border); background: var(--white);
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted); transition: all var(--transition); flex-shrink: 0;
+  }
+  .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .asset-type-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg); padding: 4px 12px; border-radius: 999px;
+    font-size: 0.82rem; font-weight: 600;
+  }
+  .color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .topbar-title { font-size: 1rem; font-weight: 700; }
+  .admin-user { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--blue); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .photo-preview {
+    width: 100%; height: 120px;
+    border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px;
+    background: var(--bg); font-size: 0.85rem; color: var(--muted);
+    overflow: hidden; position: relative;
+  }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+  .summary-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 600;
+  }
+  .field-hint { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+
+  /* clickable stat cards */
+  .stat-card-link {
+    cursor: pointer; transition: all var(--transition);
+    text-decoration: none; display: block;
+  }
+  .stat-card-link:hover .stat-card { box-shadow: var(--shadow); transform: translateY(-2px); border-color: var(--blue); }
+  .stat-card-link:hover .stat-value { color: var(--blue); }
+
+  /* inner record/report tabs */
+  .rr-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 24px; }
+  .rr-tab-btn {
+    padding: 8px 20px 10px; font-size: 0.88rem; font-weight: 600;
+    color: var(--muted); border: none; background: none; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all var(--transition); border-radius: 6px 6px 0 0;
+  }
+  .rr-tab-btn:hover { color: var(--text); }
+  .rr-tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .rr-panel { display: none; }
+  .rr-panel.active { display: block; }
+
+  /* user list table */
+  .user-row { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .user-row:last-child { border-bottom: none; }
+  .user-row:hover { background: var(--bg); }
+  .user-avatar-sm {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--blue-light); color: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN PAGE ═══════════════════════════════ -->
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <div class="logo logo-lg" style="flex-direction:column;text-align:center;">
+      <div class="logo-icon" style="background:var(--primary);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="30" height="30">
+          <rect x="5" y="3" width="14" height="18" rx="2"/>
+          <path d="M9 3v2a2 2 0 0 0 4 0V3"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="logo-text"><span class="asset">Asset</span><span class="log">Log</span></div>
+        <div class="logo-tag" style="text-align:center;">Admin Portal</div>
+      </div>
+    </div>
+
+    <div id="loginError" class="login-error hidden"></div>
+
+    <form id="loginForm" onsubmit="doLogin(event)" style="display:flex;flex-direction:column;gap:16px;margin-top:24px;">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-control" id="loginUser" autocomplete="username" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="loginPass" placeholder="••••••••" autocomplete="current-password" required/>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="rememberMe" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"/>
+        <label for="rememberMe" style="font-size:0.88rem;color:var(--muted);cursor:pointer;user-select:none;">Remember me</label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg" id="loginBtn">Sign In</button>
+    </form>
+    <p class="text-sm text-muted" style="text-align:center;margin-top:16px;">
+      <a href="index.html" style="color:var(--blue);">← Back to User Checkout</a>
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════ ADMIN APP ════════════════════════════════ -->
+<div id="adminApp" class="admin-layout hidden">
+
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo" onclick="showSection('dashboard')" style="cursor:pointer;" title="Go to Dashboard">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+            <rect x="5" y="3" width="14" height="18" rx="2"/>
+            <path d="M9 3v2a2 2 0 0 0 4 0V3"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-text"><span class="asset" style="color:white;">Asset</span><span class="log">Log</span></div>
+          <div class="logo-tag">Admin Portal</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <button class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="showSection('records')" id="nav-records">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Records
+      </button>
+      <button class="nav-item" onclick="showSection('reports')" id="nav-reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </button>
+      <button class="nav-item" onclick="showSection('assets')" id="nav-assets">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9 2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9 2.83-2.83"/></svg>
+        Assets
+      </button>
+      <div class="nav-section-label">Manage</div>
+      <button class="nav-item" onclick="showSection('types')" id="nav-types">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Asset Types
+      </button>
+      <button class="nav-item" onclick="showSection('users')" id="nav-users">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users
+      </button>
+      <div class="nav-section-label">System</div>
+      <button class="nav-item" onclick="showSection('settings')" id="nav-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button class="nav-item" onclick="showSection('audit')" id="nav-audit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        Audit Log
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <a href="index.html" class="nav-item" style="margin-bottom:4px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        User Page
+      </a>
+      <button class="nav-item" onclick="doLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <div class="admin-content">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+        <span class="topbar-title" id="topbarTitle">Dashboard</span>
+      </div>
+      <!-- Admin profile dropdown trigger -->
+      <div class="admin-user" id="profileTrigger" onclick="toggleProfileDropdown(event)" style="cursor:pointer;position:relative;user-select:none;">
+        <div class="avatar" id="adminAvatar">A</div>
+        <span style="font-size:0.85rem;font-weight:600;" id="adminName">Admin</span>
+        <svg id="profileChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+
+        <!-- Dropdown -->
+        <div id="profileDropdown" style="display:none;position:absolute;top:calc(100% + 10px);right:0;background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);min-width:220px;z-index:500;overflow:hidden;">
+          <!-- Header -->
+          <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border);background:var(--bg);">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="avatar" id="dropAvatar" style="width:42px;height:42px;font-size:1.1rem;flex-shrink:0;">A</div>
+              <div>
+                <div style="font-weight:700;font-size:0.9rem;" id="dropName">Admin</div>
+                <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Administrator</div>
+              </div>
+            </div>
+          </div>
+          <!-- Actions -->
+          <div style="padding:6px;">
+            <button onclick="openProfileModal();closeProfileDropdown();" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:none;background:none;cursor:pointer;font-size:0.88rem;font-weight:500;color:var(--text);transition:background var(--transition);" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green);"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Edit Profile
+            </button>
+            <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+            <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:none;background:none;cursor:pointer;font-size:0.88rem;font-weight:500;color:var(--danger);transition:background var(--transition);" onmouseover="this.style.background='var(--danger-light)'" onmouseout="this.style.background='none'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-page">
+
+      <!-- ═══ DASHBOARD ══════════════════════════════════════ -->
+      <div class="page-section active" id="sec-dashboard">
+        <div class="page-header">
+          <h2>Dashboard</h2>
+          <p class="text-muted text-sm">Click any card to drill into records</p>
+        </div>
+        <div class="stats-grid" id="statsGrid" style="margin-bottom:28px;"></div>
+        <div class="card">
+          <div class="section-header">
+            <h3>Recent Checkouts</h3>
+            <button class="btn btn-outline btn-sm" onclick="showSection('records')">View All Records</button>
+          </div>
+          <div class="table-wrap" id="recentTable"></div>
+        </div>
+      </div>
+
+      <!-- ═══ RECORDS ══════════════════════════════════════════ -->
+      <div class="page-section" id="sec-records">
+        <div class="page-header">
+          <h2>Records</h2>
+          <p class="text-muted text-sm">Full checkout history</p>
+        </div>
+        <div>
+          <div class="filters-bar" id="recordsFilters">
+            <div class="filter-group">
+              <label class="filter-label">Asset Type</label>
+              <select class="form-control" id="fType" onchange="onTypeFilterChange()">
+                <option value="">All Types</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Asset</label>
+              <select class="form-control" id="fAsset" onchange="applyFilters()">
+                <option value="">All Assets</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">User Name</label>
+              <input type="text" class="form-control" id="fUser" placeholder="Search name…" oninput="applyFilters()"/>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Status</label>
+              <select class="form-control" id="fStatus" onchange="applyFilters()">
+                <option value="">All</option>
+                <option value="checked_out">Checked Out</option>
+                <option value="returned">Returned</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">From Date</label>
+              <input type="date" class="form-control" id="fFrom" onchange="applyFilters()"/>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">To Date</label>
+              <input type="date" class="form-control" id="fTo" onchange="applyFilters()"/>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-shrink:0;">
+              <button class="btn btn-outline btn-sm" onclick="clearFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span class="records-count" id="recordsCount"></span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="exportExcel()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Excel
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="exportPDF()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                PDF
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap" id="recordsTable"></div>
+          <div id="recordsPagination"></div>
+        </div>
+      </div>
+
+      <!-- ═══ REPORTS ══════════════════════════════════════════ -->
+      <div class="page-section" id="sec-reports">
+        <div class="page-header">
+          <h2>Reports</h2>
+          <p class="text-muted text-sm">Filter and export checkout reports</p>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <h3 style="margin-bottom:16px;">Report Filters</h3>
+            <div class="form-row" style="margin-bottom:16px;">
+              <div class="form-group">
+                <label class="form-label">From Date</label>
+                <input type="date" class="form-control" id="rFrom"/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">To Date</label>
+                <input type="date" class="form-control" id="rTo"/>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom:16px;">
+              <div class="form-group">
+                <label class="form-label">Asset Type</label>
+                <select class="form-control" id="rType">
+                  <option value="">All Types</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-control" id="rStatus">
+                  <option value="">All</option>
+                  <option value="checked_out">Currently Out</option>
+                  <option value="returned">Returned</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="previewReport()">Preview</button>
+              <button class="btn btn-outline" onclick="reportExcel()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export Excel
+              </button>
+              <button class="btn btn-outline" onclick="reportPDF()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export PDF
+              </button>
+            </div>
+          </div>
+
+          <div id="reportPreview" class="hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+              <div>
+                <h3 id="reportTitle"></h3>
+                <p class="text-muted text-sm" id="reportSub"></p>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;" id="reportSummary"></div>
+            </div>
+            <div class="table-wrap" id="reportTable"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ASSETS ════════════════════════════════════════= -->
+      <div class="page-section" id="sec-assets">
+        <div class="page-header">
+          <h2>Assets</h2>
+          <p class="text-muted text-sm">Manage individual assets</p>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <select class="form-control" id="assetTypeFilter" style="max-width:200px;" onchange="renderAssetList()">
+            <option value="">All Types</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openAssetForm()">+ Add Asset</button>
+        </div>
+        <div id="assetList"></div>
+      </div>
+
+      <!-- ═══ SETTINGS ════════════════════════════════════════ -->
+      <div class="page-section" id="sec-settings">
+        <div class="page-header">
+          <h2>Settings</h2>
+          <p class="text-muted text-sm">Manage admins, credentials, and branding</p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchSettingsTab('admins')"      id="stab-admins">Admins</button>
+          <button class="tab-btn"         onclick="switchSettingsTab('credentials')" id="stab-credentials">My Credentials</button>
+          <button class="tab-btn"         onclick="switchSettingsTab('branding')"    id="stab-branding">Branding</button>
+        </div>
+
+        <!-- Admins -->
+        <div id="spanel-admins" class="tab-panel active">
+          <div class="section-header" style="margin-bottom:16px;">
+            <h3>Admin Accounts</h3>
+            <button class="btn btn-primary btn-sm" onclick="openAdminForm()">+ Add Admin</button>
+          </div>
+          <div id="adminList"></div>
+        </div>
+
+        <!-- My Credentials -->
+        <div id="spanel-credentials" class="tab-panel">
+          <div class="card" style="max-width:420px;">
+            <h3 style="margin-bottom:20px;">Change My Credentials</h3>
+            <form id="credForm" onsubmit="saveCredentials(event)" style="display:flex;flex-direction:column;gap:16px;">
+              <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-control" id="credUser" required/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" class="form-control" id="credPass" placeholder="Leave blank to keep current"/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" class="form-control" id="credPass2"/>
+              </div>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Branding -->
+        <div id="spanel-branding" class="tab-panel">
+          <div class="card" style="max-width:480px;">
+            <h3 style="margin-bottom:6px;">Branding</h3>
+            <p class="text-muted text-sm" style="margin-bottom:20px;">This name appears at the top of the public checkout page.</p>
+            <form id="brandingForm" onsubmit="saveBranding(event)" style="display:flex;flex-direction:column;gap:16px;">
+              <div class="form-group">
+                <label class="form-label">Department / Company Name</label>
+                <input type="text" class="form-control" id="brandingOrgName" placeholder="e.g. IT Department — Acme Corp" style="font-size:1.05rem;"/>
+                <p class="text-muted text-xs" style="margin-top:6px;">Displayed above "Asset Tracking System" in large bold text.</p>
+              </div>
+              <button type="submit" class="btn btn-primary">Save</button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ ASSET TYPES (dedicated page) ════════════════════ -->
+      <div class="page-section" id="sec-types">
+        <div class="page-header">
+          <h2>Asset Types</h2>
+          <p class="text-muted text-sm">Define the categories of assets available for checkout</p>
+        </div>
+        <div class="section-header" style="margin-bottom:16px;">
+          <span></span>
+          <button class="btn btn-primary btn-sm" onclick="openTypeForm()">+ Add Type</button>
+        </div>
+        <div id="typeList"></div>
+      </div>
+
+      <!-- ═══ USERS (dedicated page) ═══════════════════════════ -->
+      <div class="page-section" id="sec-users">
+        <div class="page-header">
+          <h2>Users</h2>
+          <p class="text-muted text-sm">Saved users appear in checkout autocomplete</p>
+        </div>
+        <div class="section-header" style="margin-bottom:16px;">
+          <h3>Saved Users <span id="userCount" class="badge badge-blue" style="margin-left:8px;"></span></h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="openBulkImport()">Bulk Import</button>
+            <button class="btn btn-primary btn-sm" onclick="openUserForm()">+ Add User</button>
+          </div>
+        </div>
+        <div class="filters-bar" style="margin-bottom:16px;padding:12px 16px;">
+          <div class="filter-group" style="flex:1;">
+            <input type="text" class="form-control" id="userSearch" placeholder="Search users…" oninput="renderUserList()"/>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="userList"></div>
+        </div>
+      </div>
+
+      <!-- ═══ AUDIT LOG (dedicated page) ═══════════════════════ -->
+      <div class="page-section" id="sec-audit">
+        <div class="page-header">
+          <h2>Audit Log</h2>
+          <p class="text-muted text-sm">Complete history of all admin actions</p>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="clearAuditLog()">Clear Log</button>
+        </div>
+        <div id="auditLogList"></div>
+      </div>
+
+    </div><!-- /admin-page -->
+
+    <!-- Footer -->
+    <footer style="background:var(--white);border-top:1px solid var(--border);text-align:center;padding:14px 20px;font-size:0.75rem;color:var(--muted);">
+      AssetLog Admin &nbsp;·&nbsp; Developed by <span style="color:var(--green);font-weight:600;">Naif Almalki</span> &nbsp;·&nbsp; <a href="mailto:naif.almalkisau@gmail.com" style="color:var(--green);opacity:.75;text-decoration:none;">naif.almalkisau@gmail.com</a>
+    </footer>
+  </div><!-- /admin-content -->
+</div><!-- /adminApp -->
+
+<!-- ── MODAL: Asset Type Form ────────────────────────────── -->
+<div class="modal-overlay hidden" id="typeFormModal" onclick="closeOnOverlay(event,'typeFormModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="typeFormTitle">Add Asset Type</div>
+      <button class="modal-close" onclick="closeModal('typeFormModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="typeForm" onsubmit="saveType(event)" style="display:flex;flex-direction:column;gap:16px;">
+        <input type="hidden" id="typeFormId"/>
+        <div class="form-group">
+          <label class="form-label">Type Name <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-control" id="tName" placeholder="e.g. Laptops" required/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Icon (Emoji)</label>
+            <input type="text" class="form-control" id="tIcon" placeholder="e.g. 💻" maxlength="4"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Accent Color</label>
+            <input type="color" class="form-control" id="tColor" value="#2563EB" style="height:42px;padding:4px 8px;"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" class="form-control" id="tDesc" placeholder="Brief description"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type Photo URL <span class="field-hint" style="font-weight:400;">(optional — shown on the checkout page)</span></label>
+          <input type="url" class="form-control" id="tPhoto" placeholder="https://…" oninput="previewTypePhoto(this.value)"/>
+          <div class="photo-preview" id="typePhotoPreview" style="margin-top:8px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>No image</span>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('typeFormModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="document.getElementById('typeForm').requestSubmit()">Save Type</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Asset Form ─────────────────────────────────── -->
+<div class="modal-overlay hidden" id="assetFormModal" onclick="closeOnOverlay(event,'assetFormModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="assetFormTitle">Add Asset</div>
+      <button class="modal-close" onclick="closeModal('assetFormModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="assetForm" onsubmit="saveAsset(event)" style="display:flex;flex-direction:column;gap:16px;">
+        <input type="hidden" id="assetFormId"/>
+        <div class="form-group">
+          <label class="form-label">Asset Type <span style="color:var(--danger)">*</span></label>
+          <select class="form-control" id="aType" required><option value="">Select type…</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Asset Name <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-control" id="aName" placeholder="e.g. Toyota Fortuner" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Identifier (Plate / Serial No.)</label>
+          <input type="text" class="form-control" id="aIdentifier" placeholder="e.g. ABC 1234"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Photo URL</label>
+          <input type="url" class="form-control" id="aPhoto" placeholder="https://…" oninput="previewAssetPhoto(this.value)"/>
+          <div class="field-hint">Paste a direct image URL.</div>
+          <div class="photo-preview" id="assetPhotoPreview" style="margin-top:8px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>No image</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <input type="text" class="form-control" id="aNotes" placeholder="Optional notes"/>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('assetFormModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="document.getElementById('assetForm').requestSubmit()">Save Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Admin Form ─────────────────────────────────── -->
+<div class="modal-overlay hidden" id="adminFormModal" onclick="closeOnOverlay(event,'adminFormModal')">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title" id="adminFormTitle">Add Admin</div>
+      <button class="modal-close" onclick="closeModal('adminFormModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="adminForm" onsubmit="saveAdmin(event)" style="display:flex;flex-direction:column;gap:16px;">
+        <input type="hidden" id="adminFormId"/>
+        <div class="form-group">
+          <label class="form-label">Username <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-control" id="afUser" placeholder="username" required autocomplete="off"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password <span style="color:var(--danger)" id="afPassRequired">*</span></label>
+          <input type="password" class="form-control" id="afPass" placeholder="••••••••" autocomplete="new-password"/>
+          <div class="field-hint" id="afPassHint"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" class="form-control" id="afPass2" placeholder="••••••••" autocomplete="new-password"/>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('adminFormModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="document.getElementById('adminForm').requestSubmit()">Save Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: User Form ──────────────────────────────────── -->
+<div class="modal-overlay hidden" id="userFormModal" onclick="closeOnOverlay(event,'userFormModal')">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title" id="userFormTitle">Add User</div>
+      <button class="modal-close" onclick="closeModal('userFormModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="userForm" onsubmit="saveUser(event)" style="display:flex;flex-direction:column;gap:16px;">
+        <input type="hidden" id="userFormId"/>
+        <div class="form-group">
+          <label class="form-label">Full Name <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-control" id="ufName" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="tel" class="form-control" id="ufPhone"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" id="ufEmail"/>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('userFormModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="document.getElementById('userForm').requestSubmit()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Bulk Import ────────────────────────────────── -->
+<div class="modal-overlay hidden" id="bulkImportModal" onclick="closeOnOverlay(event,'bulkImportModal')">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Import Users</div>
+      <button class="modal-close" onclick="closeModal('bulkImportModal')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Step 1: Download template -->
+      <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:600;font-size:0.9rem;color:var(--green);">Step 1 — Download the CSV template</div>
+          <div class="text-xs text-muted" style="margin-top:3px;">Fill it with your users, save as CSV, then upload below.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="downloadCSVTemplate()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Template
+        </button>
+      </div>
+
+      <!-- Step 2: Upload CSV -->
+      <div style="margin-bottom:16px;">
+        <label class="form-label" style="margin-bottom:6px;display:block;">Step 2 — Upload a filled CSV file</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;border:1.5px dashed var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;color:var(--muted);transition:all var(--transition);background:var(--bg);"
+                 onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'"
+                 onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Choose CSV file
+            <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display:none;" onchange="loadCSVFile(this)"/>
+          </label>
+          <span id="csvFileName" class="text-sm text-muted"></span>
+        </div>
+      </div>
+
+      <!-- Step 3: Review / paste -->
+      <div class="form-group" style="margin-bottom:4px;">
+        <label class="form-label">Step 3 — Review or paste manually</label>
+        <p class="field-hint" style="margin-bottom:6px;">One user per line: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:0.75rem;">Full Name, Phone, Email</code> — phone and email are optional. Duplicates are skipped.</p>
+        <textarea class="form-control" id="bulkText" rows="9" placeholder="Ahmed Al-Rashid, +966 50 123 4567, ahmed@company.com&#10;Sara Mohammed, +966 55 987 6543&#10;Khalid Bin Laden"></textarea>
+      </div>
+      <div id="bulkPreviewMsg" class="text-sm" style="margin-top:8px;font-weight:500;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bulkImportModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="executeBulkImport()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Import Users
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Admin Profile Edit ─────────────────────────── -->
+<div class="modal-overlay hidden" id="profileModal" onclick="closeOnOverlay(event,'profileModal')">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">My Profile</div>
+        <div class="text-muted text-xs" style="margin-top:2px;">Update your username or password</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Avatar display -->
+      <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:20px;">
+        <div class="avatar" id="profileModalAvatar" style="width:52px;height:52px;font-size:1.3rem;flex-shrink:0;">A</div>
+        <div>
+          <div style="font-weight:700;font-size:1rem;" id="profileModalName">Admin</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:3px;">Administrator Account</div>
+        </div>
+      </div>
+
+      <form id="profileForm" onsubmit="saveProfile(event)" style="display:flex;flex-direction:column;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" class="form-control" id="profileUser" required autocomplete="username"/>
+        </div>
+        <div style="height:1px;background:var(--border);"></div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input type="password" class="form-control" id="profilePass" placeholder="Leave blank to keep current" autocomplete="new-password"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input type="password" class="form-control" id="profilePass2" placeholder="Re-enter new password" autocomplete="new-password"/>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('profileModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="document.getElementById('profileForm').requestSubmit()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Delete Confirm ─────────────────────────────── -->
+<div class="modal-overlay hidden" id="deleteModal" onclick="closeOnOverlay(event,'deleteModal')">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title">Confirm Delete</div>
+      <button class="modal-close" onclick="closeModal('deleteModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="deleteMsg" style="font-size:0.92rem;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="app.js"></script>
+<script>
+  AssetLog.init();
+
+  // Pre-fill remembered username
+  (function(){
+    const saved = localStorage.getItem('al_remembered_user');
+    if (saved) {
+      document.getElementById('loginUser').value = saved;
+      document.getElementById('rememberMe').checked = true;
+    }
+  })();
+
+  function auditActor(){ const s=AssetLog.admin.currentSession(); return s?s.username:'system'; }
+
+  /* Auto-restore session if still valid */
+  if (AssetLog.admin.isLoggedIn()) {
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('adminApp').classList.remove('hidden');
+    initAdminApp();
+  }
+
+  /* ════════ AUTH ════════════════════════════════════════════ */
+  function doLogin(e) {
+    e.preventDefault();
+    const user = document.getElementById('loginUser').value;
+    const pass = document.getElementById('loginPass').value;
+    const btn  = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    setTimeout(() => {
+      const remember = document.getElementById('rememberMe').checked;
+      if (remember) localStorage.setItem('al_remembered_user', user); else localStorage.removeItem('al_remembered_user');
+      if (AssetLog.admin.login(user, pass)) {
+        document.getElementById('loginPage').classList.add('hidden');
+        document.getElementById('adminApp').classList.remove('hidden');
+        AssetLog.audit.log('Login', 'Signed in', user);
+        initAdminApp();
+      } else {
+        const err = document.getElementById('loginError');
+        err.textContent = 'Invalid username or password.';
+        err.classList.remove('hidden');
+      }
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }, 300);
+  }
+
+  function doLogout() {
+    AssetLog.audit.log('Logout', 'Signed out', auditActor());
+    AssetLog.admin.logout();
+    document.getElementById('adminApp').classList.add('hidden');
+    document.getElementById('loginPage').classList.remove('hidden');
+    document.getElementById('loginForm').reset();
+    document.getElementById('loginError').classList.add('hidden');
+  }
+
+  /* ════════ INIT ════════════════════════════════════════════ */
+  function initAdminApp() {
+    const sess = AssetLog.admin.currentSession();
+    if (sess) {
+      const initial = (sess.username[0] || 'A').toUpperCase();
+      ['adminAvatar','dropAvatar'].forEach(id => document.getElementById(id).textContent = initial);
+      ['adminName','dropName'].forEach(id => document.getElementById(id).textContent = sess.username);
+    }
+    populateTypeFilters();
+    renderDashboard();
+  }
+
+  function populateTypeFilters() {
+    const types = AssetLog.types.getAll();
+    ['fType','rType','assetTypeFilter'].forEach(id => {
+      const sel = document.getElementById(id);
+      const cur = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      types.forEach(t => sel.add(new Option(`${t.icon} ${t.name}`, t.id)));
+      sel.value = cur;
+    });
+    populateAssetFilter(document.getElementById('fType').value);
+  }
+
+  function populateAssetFilter(typeId) {
+    const sel = document.getElementById('fAsset');
+    while (sel.options.length > 1) sel.remove(1);
+    (typeId ? AssetLog.assets.getByType(typeId) : AssetLog.assets.getAll()).forEach(a => sel.add(new Option(a.name, a.id)));
+  }
+
+  function onTypeFilterChange() { populateAssetFilter(document.getElementById('fType').value); applyFilters(); }
+
+  /* ════════ NAVIGATION ══════════════════════════════════════ */
+  const sectionTitles = { dashboard:'Dashboard', records:'Records', reports:'Reports', assets:'Assets', types:'Asset Types', users:'Users', settings:'Settings', audit:'Audit Log' };
+
+  function showSection(id, rrTab) {
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('sec-' + id).classList.add('active');
+    document.getElementById('nav-' + id).classList.add('active');
+    document.getElementById('topbarTitle').textContent = sectionTitles[id] || id;
+    if (window.innerWidth < 900) closeSidebar();
+
+    if (id === 'dashboard') renderDashboard();
+    if (id === 'records')   { populateTypeFilters(); applyFilters(); }
+    if (id === 'reports')   { populateTypeFilters(); }
+    if (id === 'assets')    { populateTypeFilters(); renderAssetList(); }
+    if (id === 'types')     { renderTypeList(); }
+    if (id === 'users')     { renderUserList(); }
+    if (id === 'audit')     { renderAuditLog(); }
+    if (id === 'settings')  { renderAdminList(); fillCredForm(); fillBrandingForm(); }
+  }
+
+  function toggleSidebar()  { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
+  function closeSidebar()   { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+  /* ════════ RR TABS ═════════════════════════════════════════ */
+  function switchRRTab(tab) {
+    document.querySelectorAll('.rr-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.rr-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('rrtab-' + tab).classList.add('active');
+    document.getElementById('rrpanel-' + tab).classList.add('active');
+    if (tab === 'reports') populateTypeFilters();
+  }
+
+  /* ════════ DASHBOARD ═══════════════════════════════════════ */
+  function renderDashboard() {
+    const s          = AssetLog.records.stats();
+    const totalAssets = AssetLog.assets.getAll(true).length;
+    const availAssets = AssetLog.assets.getAll(true).filter(a => a.available).length;
+    const today       = AssetLog.fmtDate(new Date());
+
+    document.getElementById('statsGrid').innerHTML = `
+      <a class="stat-card-link" onclick="showSection('records');setFilter('fStatus','')">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#EFF6FF;color:#2563EB;">📋</div>
+          <div class="stat-value">${s.total}</div>
+          <div class="stat-label">Total Checkouts</div>
+        </div>
+      </a>
+      <a class="stat-card-link" onclick="showSection('records');setFilter('fStatus','checked_out')">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FEF2F2;color:#DC2626;">🔄</div>
+          <div class="stat-value">${s.active}</div>
+          <div class="stat-label">Currently Out</div>
+        </div>
+      </a>
+      <a class="stat-card-link" onclick="showSection('assets')">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#F0FDF4;color:#16A34A;">✅</div>
+          <div class="stat-value">${availAssets}/${totalAssets}</div>
+          <div class="stat-label">Assets Available</div>
+        </div>
+      </a>
+      <a class="stat-card-link" onclick="showSection('records');setTodayFilter()">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FFFBEB;color:#F59E0B;">📅</div>
+          <div class="stat-value">${s.todayOut}</div>
+          <div class="stat-label">Checkouts Today</div>
+        </div>
+      </a>`;
+
+    document.getElementById('recentTable').innerHTML = buildRecordsTable(AssetLog.records.getAll().slice(0, 10), false);
+  }
+
+  function setFilter(id, val) {
+    document.getElementById(id).value = val;
+    if (id === 'fType') populateAssetFilter(val);
+    applyFilters();
+  }
+
+  function setTodayFilter() {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('fFrom').value = today;
+    document.getElementById('fTo').value   = today;
+    document.getElementById('fStatus').value = '';
+    applyFilters();
+  }
+
+  /* ════════ RECORDS ══════════════════════════════════════════ */
+  let filteredRecords = [];
+  let currentPage = 1;
+  const PAGE_SIZE = 20;
+
+  function applyFilters() {
+    filteredRecords = AssetLog.records.filter({
+      typeId:   document.getElementById('fType').value   || undefined,
+      assetId:  document.getElementById('fAsset').value  || undefined,
+      userName: document.getElementById('fUser').value   || undefined,
+      status:   document.getElementById('fStatus').value || undefined,
+      dateFrom: document.getElementById('fFrom').value   || undefined,
+      dateTo:   document.getElementById('fTo').value     || undefined,
+    });
+    currentPage = 1;
+    renderRecordsPage();
+  }
+
+  function clearFilters() {
+    ['fType','fAsset','fUser','fStatus','fFrom','fTo'].forEach(id => { document.getElementById(id).value = ''; });
+    populateAssetFilter('');
+    applyFilters();
+  }
+
+  function renderRecordsPage() {
+    const total = filteredRecords.length;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    document.getElementById('recordsCount').textContent = `${total} record${total !== 1 ? 's' : ''}`;
+    document.getElementById('recordsTable').innerHTML   = buildRecordsTable(filteredRecords.slice(start, start + PAGE_SIZE), true);
+    renderPagination(total);
+  }
+
+  function renderPagination(total) {
+    const pages = Math.ceil(total / PAGE_SIZE);
+    if (pages <= 1) { document.getElementById('recordsPagination').innerHTML = ''; return; }
+    let html = '<div class="pagination">';
+    html += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>&#8249;</button>`;
+    for (let i = 1; i <= pages; i++) {
+      if (pages > 7 && Math.abs(i - currentPage) > 2 && i !== 1 && i !== pages) {
+        if (i === 2 || i === pages - 1) html += '<span style="padding:0 4px;color:var(--muted);">&#8230;</span>';
+        continue;
+      }
+      html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>&#8250;</button>`;
+    html += '</div>';
+    document.getElementById('recordsPagination').innerHTML = html;
+  }
+
+  function goPage(p) { currentPage = p; renderRecordsPage(); }
+
+  function buildRecordsTable(recs, showAll) {
+    if (!recs.length) return '<div class="table-empty"><div class="empty-icon">&#128269;</div><p>No records found.</p></div>';
+    const phoneCols = showAll ? '<th>Phone</th><th>Email</th>' : '';
+    const actionCol = showAll ? '<th></th>' : '';
+    const rows = recs.map((r, i) => {
+      const dur = AssetLog.calcDuration(r.createdAt, r.returnedAt || null);
+      const isOut = r.status === 'checked_out';
+      const badge = isOut
+        ? '<span class="badge badge-red" style="font-weight:700;">OUT</span>'
+        : '<span class="badge badge-green">Returned</span>';
+      const phone = showAll ? `<td>${r.phone||''}</td><td>${r.email||''}</td>` : '';
+      const action = showAll
+        ? `<td>${isOut ? `<button class="btn btn-outline btn-sm" style="color:var(--green);border-color:var(--green);" onclick="adminReturn('${r.id}')">&#8617; Return</button>` : ''}</td>`
+        : '';
+      return `<tr>
+        <td class="text-muted text-xs">${i+1}</td>
+        <td><div style="font-weight:600;font-size:0.88rem;">${r.assetName}</div><div class="text-xs text-muted">${r.assetIdentifier||''}</div></td>
+        <td><div style="font-weight:600;font-size:0.88rem;">${r.userName}</div></td>
+        ${phone}
+        <td class="text-sm">${r.dateTaken}<div class="text-xs text-muted">${r.timeTaken}</div></td>
+        <td class="text-sm">${r.dateReturned ? r.dateReturned + '<div class="text-xs text-muted">' + (r.timeReturned||'') + '</div>' : '&mdash;'}</td>
+        <td class="text-sm text-muted">${dur}</td>
+        <td>${badge}</td>
+        ${action}
+      </tr>`;
+    }).join('');
+    return `<table><thead><tr><th>#</th><th>Asset</th><th>User</th>${phoneCols}<th>Checked Out</th><th>Returned</th><th>Duration</th><th>Status</th>${actionCol}</tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  function adminReturn(recordId) {
+    if (!confirm('Mark this asset as returned?')) return;
+    const rec = AssetLog.records.returnAsset(recordId);
+    if (rec) {
+      AssetLog.audit.log('Asset Returned (Admin)', `${rec.assetName} — ${rec.userName}`, auditActor());
+      showToast(rec.assetName + ' marked as returned.');
+      applyFilters();
+      renderDashboard();
+    }
+  }
+
+  /* MODALS */
+  function openModal(id)  { document.getElementById(id).classList.remove('hidden'); document.body.style.overflow='hidden'; }
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.body.style.overflow=''; }
+  function closeOnOverlay(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+
+  /* TOAST */
+  function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = 'toast toast-' + (type||'success');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+  }
+
+  /* ASSET TYPES */
+  function renderTypeList() {
+    const types = AssetLog.types.getAll();
+    const el = document.getElementById('typeList');
+    if (!types.length) { el.innerHTML = '<p class="text-muted text-sm">No asset types yet.</p>'; return; }
+    el.innerHTML = types.map(t => `
+      <div class="settings-item">
+        <div style="width:38px;height:38px;border-radius:8px;background:${t.color||'#2563EB'};display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">${t.icon||'?'}</div>
+        <div class="settings-item-info">
+          <div class="settings-item-name">${t.name}</div>
+          <div class="settings-item-sub">${t.description||''}</div>
+        </div>
+        <div class="settings-item-actions">
+          <label class="toggle" title="${t.enabled?'Enabled':'Disabled'}"><input type="checkbox" ${t.enabled?'checked':''} onchange="toggleType('${t.id}',this.checked)"/><span class="toggle-slider"></span></label>
+          <button class="btn btn-outline btn-sm" onclick="openTypeForm('${t.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete('type','${t.id}','${t.name.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function openTypeForm(id) {
+    document.getElementById('typeFormId').value = id || '';
+    document.getElementById('typeFormTitle').textContent = id ? 'Edit Asset Type' : 'Add Asset Type';
+    if (id) {
+      const t = AssetLog.types.get(id);
+      document.getElementById('tName').value  = t.name;
+      document.getElementById('tIcon').value  = t.icon||'';
+      document.getElementById('tColor').value = t.color||'#2563EB';
+      document.getElementById('tDesc').value  = t.description||'';
+      document.getElementById('tPhoto').value = t.photo||'';
+      previewTypePhoto(t.photo||'');
+    } else {
+      document.getElementById('typeForm').reset();
+      document.getElementById('tColor').value = '#2563EB';
+      previewTypePhoto('');
+    }
+    openModal('typeFormModal');
+  }
+
+  function saveType(e) {
+    e.preventDefault();
+    const id = document.getElementById('typeFormId').value;
+    const d  = { name:document.getElementById('tName').value.trim(), icon:document.getElementById('tIcon').value.trim(), color:document.getElementById('tColor').value, description:document.getElementById('tDesc').value.trim(), photo:document.getElementById('tPhoto').value.trim() };
+    if (id) { AssetLog.types.update(id, d); AssetLog.audit.log('Type Updated', d.name, auditActor()); }
+    else { AssetLog.types.add(d); AssetLog.audit.log('Type Added', d.name, auditActor()); }
+    closeModal('typeFormModal'); renderTypeList(); populateTypeFilters();
+    showToast(id ? 'Type updated.' : 'Type added.');
+  }
+
+  function toggleType(id, enabled) { const t=AssetLog.types.get(id); AssetLog.types.update(id,{enabled}); AssetLog.audit.log(enabled?'Type Enabled':'Type Disabled', t?t.name:id, auditActor()); showToast(enabled?'Type enabled.':'Type disabled.', enabled?'success':'warning'); }
+
+  function previewTypePhoto(url) {
+    const el = document.getElementById('typePhotoPreview'); if (!el) return;
+    if (url) el.innerHTML = `<img src="${url}" style="max-height:80px;border-radius:6px;" onerror="this.parentElement.innerHTML='<span>Invalid URL</span>'">`;
+    else el.innerHTML = '<span class="text-muted">No image</span>';
+  }
+
+  /* ASSETS */
+  function renderAssetList() {
+    const typeId = (document.getElementById('assetTypeFilter')||{}).value || '';
+    const assets = typeId ? AssetLog.assets.getByType(typeId) : AssetLog.assets.getAll();
+    const el = document.getElementById('assetList');
+    if (!assets.length) { el.innerHTML = '<p class="text-muted text-sm">No assets yet.</p>'; return; }
+    el.innerHTML = assets.map(a => {
+      const type = AssetLog.types.get(a.typeId);
+      const status = a.available
+        ? '<span style="color:var(--green);font-weight:600;">&#10003; Available</span>'
+        : '<span style="color:var(--danger);font-weight:600;">&#8635; Checked Out</span>';
+      const icon = a.photo
+        ? `<img src="${a.photo}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;flex-shrink:0;">`
+        : `<div style="width:38px;height:38px;border-radius:8px;background:${type?type.color:'#64748b'};display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">${type?type.icon:'?'}</div>`;
+      return `<div class="settings-item">
+        ${icon}
+        <div class="settings-item-info">
+          <div class="settings-item-name">${a.name}</div>
+          <div class="settings-item-sub">${a.identifier||''} &nbsp;&middot;&nbsp; ${type?type.name:'Unknown'} &nbsp;&middot;&nbsp; ${status}</div>
+        </div>
+        <div class="settings-item-actions">
+          <label class="toggle" title="${a.enabled?'Enabled':'Disabled'}"><input type="checkbox" ${a.enabled?'checked':''} onchange="toggleAsset('${a.id}',this.checked)"/><span class="toggle-slider"></span></label>
+          <button class="btn btn-outline btn-sm" onclick="openAssetForm('${a.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete('asset','${a.id}','${a.name.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openAssetForm(id) {
+    const types = AssetLog.types.getAll(true);
+    const sel = document.getElementById('aType');
+    sel.innerHTML = '<option value="">Select type...</option>' + types.map(t => `<option value="${t.id}">${t.icon||''} ${t.name}</option>`).join('');
+    document.getElementById('assetFormId').value = id || '';
+    document.getElementById('assetFormTitle').textContent = id ? 'Edit Asset' : 'Add Asset';
+    if (id) {
+      const a = AssetLog.assets.get(id);
+      sel.value = a.typeId;
+      document.getElementById('aName').value       = a.name;
+      document.getElementById('aIdentifier').value = a.identifier||'';
+      document.getElementById('aPhoto').value      = a.photo||'';
+      document.getElementById('aNotes').value      = a.notes||'';
+      previewAssetPhoto(a.photo||'');
+    } else { document.getElementById('assetForm').reset(); previewAssetPhoto(''); }
+    openModal('assetFormModal');
+  }
+
+  function saveAsset(e) {
+    e.preventDefault();
+    const id = document.getElementById('assetFormId').value;
+    const d  = { typeId:document.getElementById('aType').value, name:document.getElementById('aName').value.trim(), identifier:document.getElementById('aIdentifier').value.trim(), photo:document.getElementById('aPhoto').value.trim(), notes:document.getElementById('aNotes').value.trim() };
+    if (id) { AssetLog.assets.update(id,d); AssetLog.audit.log('Asset Updated', d.name, auditActor()); }
+    else { AssetLog.assets.add(d); AssetLog.audit.log('Asset Added', d.name, auditActor()); }
+    closeModal('assetFormModal'); renderAssetList(); populateTypeFilters();
+    showToast(id ? 'Asset updated.' : 'Asset added.');
+  }
+
+  function toggleAsset(id, enabled) { const a=AssetLog.assets.get(id); AssetLog.assets.update(id,{enabled}); AssetLog.audit.log(enabled?'Asset Enabled':'Asset Disabled', a?a.name:id, auditActor()); showToast(enabled?'Asset enabled.':'Asset disabled.',enabled?'success':'warning'); }
+
+  function previewAssetPhoto(url) {
+    const el = document.getElementById('assetPhotoPreview'); if (!el) return;
+    if (url) el.innerHTML = `<img src="${url}" style="max-height:80px;border-radius:6px;" onerror="this.parentElement.innerHTML='<span>Invalid URL</span>'">`;
+    else el.innerHTML = '<span class="text-muted">No image</span>';
+  }
+
+  /* ADMINS */
+  function renderAdminList() {
+    const admins = AssetLog.admin.getAll();
+    const sess   = AssetLog.admin.currentSession();
+    const el = document.getElementById('adminList');
+    if (!admins.length) { el.innerHTML = '<p class="text-muted text-sm">No admins.</p>'; return; }
+    el.innerHTML = admins.map(a => {
+      const isMe = sess && sess.adminId === a.id;
+      return `<div class="settings-item">
+        <div class="avatar" style="flex-shrink:0;">${(a.username[0]||'A').toUpperCase()}</div>
+        <div class="settings-item-info">
+          <div class="settings-item-name">${a.username}${isMe?' <span style="font-size:0.7rem;background:var(--green-light);color:var(--green);padding:2px 7px;border-radius:20px;font-weight:600;">You</span>':''}</div>
+          <div class="settings-item-sub">Administrator</div>
+        </div>
+        <div class="settings-item-actions">
+          <button class="btn btn-outline btn-sm" onclick="openAdminForm('${a.id}')">Edit</button>
+          ${!isMe?`<button class="btn btn-danger btn-sm" onclick="confirmDelete('admin','${a.id}','${a.username.replace(/'/g,"\\'")}')">Delete</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openAdminForm(id) {
+    document.getElementById('adminFormId').value = id || '';
+    document.getElementById('adminFormTitle').textContent = id ? 'Edit Admin' : 'Add Admin';
+    document.getElementById('adminForm').reset();
+    if (id) {
+      const a = AssetLog.admin.getAll().find(x => x.id === id);
+      document.getElementById('afUser').value = a.username;
+      document.getElementById('afPassRequired').style.display = 'none';
+      document.getElementById('afPassHint').textContent = 'Leave blank to keep current password.';
+    } else {
+      document.getElementById('afPassRequired').style.display = '';
+      document.getElementById('afPassHint').textContent = '';
+    }
+    openModal('adminFormModal');
+  }
+
+  function saveAdmin(e) {
+    e.preventDefault();
+    const id   = document.getElementById('adminFormId').value;
+    const user = document.getElementById('afUser').value.trim();
+    const pass = document.getElementById('afPass').value;
+    const pass2= document.getElementById('afPass2').value;
+    if (pass && pass !== pass2) { showToast('Passwords do not match.','error'); return; }
+    if (!id && !pass) { showToast('Password is required.','error'); return; }
+    if (id) { AssetLog.admin.update(id,{username:user,...(pass?{password:pass}:{})}); }
+    else { if(!AssetLog.admin.add({username:user,password:pass})){ showToast('Username already exists.','error'); return; } }
+    AssetLog.audit.log(id?'Admin Updated':'Admin Added', user, auditActor());
+    closeModal('adminFormModal'); renderAdminList();
+    showToast(id ? 'Admin updated.' : 'Admin added.');
+  }
+
+  /* USERS */
+  function renderUserList() {
+    const q = (document.getElementById('userSearch')||{}).value || '';
+    const users = q ? AssetLog.users.search(q) : AssetLog.users.getAll();
+    const el = document.getElementById('userList');
+    const count = AssetLog.users.getAll().length;
+    const countEl = document.getElementById('userCount');
+    if (countEl) countEl.textContent = count;
+    if (!users.length) { el.innerHTML = '<p class="text-muted text-sm" style="padding:12px 16px;">No users found.</p>'; return; }
+    el.innerHTML = users.map(u => `
+      <div class="user-row">
+        <div class="user-avatar-sm">${(u.name[0]||'?').toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:0.88rem;">${u.name}</div>
+          <div class="text-xs text-muted">${[u.phone,u.email].filter(Boolean).join(' &middot; ')||'No contact info'}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn btn-outline btn-sm" onclick="openUserForm('${u.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${u.name.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function openUserForm(id) {
+    document.getElementById('userFormId').value = id || '';
+    document.getElementById('userFormTitle').textContent = id ? 'Edit User' : 'Add User';
+    document.getElementById('userForm').reset();
+    if (id) {
+      const u = AssetLog.users.getAll().find(x => x.id === id);
+      document.getElementById('ufName').value  = u.name;
+      document.getElementById('ufPhone').value = u.phone||'';
+      document.getElementById('ufEmail').value = u.email||'';
+    }
+    openModal('userFormModal');
+  }
+
+  function saveUser(e) {
+    e.preventDefault();
+    const id = document.getElementById('userFormId').value;
+    const d  = {name:document.getElementById('ufName').value.trim(), phone:document.getElementById('ufPhone').value.trim(), email:document.getElementById('ufEmail').value.trim()};
+    if (id) AssetLog.users.update(id,d);
+    else { if(!AssetLog.users.add(d)){showToast('User already exists.','error');return;} }
+    AssetLog.audit.log(id?'User Updated':'User Added', d.name, auditActor());
+    closeModal('userFormModal'); renderUserList();
+    showToast(id ? 'User updated.' : 'User added.');
+  }
+
+  /* BULK IMPORT */
+  function loadCSVFile(input) {
+    const file = input.files[0]; if (!file) return;
+    document.getElementById('csvFileName').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('bulkText').value = e.target.result; };
+    reader.readAsText(file);
+  }
+
+  function downloadCSVTemplate() {
+    const csv = 'Full Name,Phone,Email\nJohn Doe,+1 555 1234,john@example.com\nJane Smith,,jane@example.com';
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'users_template.csv'; a.click();
+  }
+
+  function executeBulkImport() {
+    const text = document.getElementById('bulkText').value.trim();
+    if (!text) { showToast('Nothing to import.','error'); return; }
+    const list = text.split('\n').filter(l=>l.trim()).map(line => {
+      const p = line.split(',').map(s=>s.trim());
+      return {name:p[0]||'', phone:p[1]||'', email:p[2]||''};
+    }).filter(u => u.name && u.name.toLowerCase() !== 'full name');
+    const added = AssetLog.users.bulkAdd(list);
+    AssetLog.audit.log('Bulk Import', `${added} users imported`, auditActor());
+    closeModal('bulkImportModal'); renderUserList();
+    showToast(`Imported ${added} user${added!==1?'s':''}.`);
+  }
+
+  /* CREDENTIALS */
+  function fillCredForm() {
+    const sess = AssetLog.admin.currentSession();
+    if (sess) document.getElementById('credUser').value = sess.username;
+  }
+
+  function saveCredentials(e) {
+    e.preventDefault();
+    const sess = AssetLog.admin.currentSession(); if (!sess) return;
+    const user = document.getElementById('credUser').value.trim();
+    const pass = document.getElementById('credPass').value;
+    const pass2= document.getElementById('credPass2').value;
+    if (pass && pass !== pass2) { showToast('Passwords do not match.','error'); return; }
+    AssetLog.admin.update(sess.adminId, {username:user,...(pass?{password:pass}:{})});
+    AssetLog.audit.log('Credentials Updated', `Username changed to: ${user}`, auditActor());
+    showToast('Credentials updated. Logging out...');
+    setTimeout(doLogout, 1500);
+  }
+
+  /* PROFILE MODAL */
+  function openProfileModal() {
+    const sess = AssetLog.admin.currentSession(); if (!sess) return;
+    document.getElementById('profileUser').value  = sess.username;
+    document.getElementById('profilePass').value  = '';
+    document.getElementById('profilePass2').value = '';
+    document.getElementById('profileModalName').textContent   = sess.username;
+    document.getElementById('profileModalAvatar').textContent = (sess.username[0]||'A').toUpperCase();
+    openModal('profileModal');
+  }
+
+  function closeProfileDropdown() {
+    const d = document.getElementById('profileDropdown');
+    if (d) d.classList.remove('open');
+  }
+
+  function saveProfile(e) {
+    e.preventDefault();
+    const sess = AssetLog.admin.currentSession(); if (!sess) return;
+    const user = document.getElementById('profileUser').value.trim();
+    const pass = document.getElementById('profilePass').value;
+    const pass2= document.getElementById('profilePass2').value;
+    if (pass && pass !== pass2) { showToast('Passwords do not match.','error'); return; }
+    AssetLog.admin.update(sess.adminId, {username:user,...(pass?{password:pass}:{})});
+    AssetLog.audit.log('Profile Updated', `Username: ${user}`, auditActor());
+    closeModal('profileModal');
+    showToast('Profile updated. Logging out...');
+    setTimeout(doLogout, 1500);
+  }
+
+  /* DELETE CONFIRM */
+  function confirmDelete(type, id, name) {
+    document.getElementById('deleteMsg').textContent = `Delete "${name}"? This cannot be undone.`;
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+      const actor = auditActor();
+      if (type==='type')  { AssetLog.types.remove(id);  renderTypeList();  populateTypeFilters(); AssetLog.audit.log('Type Deleted', name, actor); }
+      if (type==='asset') { AssetLog.assets.remove(id); renderAssetList(); populateTypeFilters(); AssetLog.audit.log('Asset Deleted', name, actor); }
+      if (type==='admin') { if(!AssetLog.admin.remove(id)){showToast('Cannot delete the only admin.','error');closeModal('deleteModal');return;} renderAdminList(); AssetLog.audit.log('Admin Deleted', name, actor); }
+      if (type==='user')  { AssetLog.users.remove(id);  renderUserList(); AssetLog.audit.log('User Deleted', name, actor); }
+      closeModal('deleteModal');
+      showToast('Deleted.');
+    };
+    openModal('deleteModal');
+  }
+
+  /* SETTINGS TABS */
+  function switchSettingsTab(tab) {
+    document.querySelectorAll('[id^="stab-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('stab-' + tab).classList.add('active');
+    document.getElementById('spanel-' + tab).classList.add('active');
+    if (tab === 'branding') fillBrandingForm();
+  }
+
+  /* BRANDING */
+  function fillBrandingForm() {
+    const s = AssetLog.settings.get();
+    document.getElementById('brandingOrgName').value = s.orgName || '';
+  }
+
+  function saveBranding(e) {
+    e.preventDefault();
+    const name = document.getElementById('brandingOrgName').value.trim();
+    AssetLog.settings.set({orgName: name});
+    AssetLog.audit.log('Branding Updated', `Org name: ${name||'(cleared)'}`, auditActor());
+    showToast('Saved! The checkout page will now show: ' + (name || '(none)'));
+  }
+
+  /* AUDIT LOG */
+  function renderAuditLog() {
+    const entries = AssetLog.audit.getAll();
+    const el = document.getElementById('auditLogList');
+    if (!el) return;
+    if (!entries.length) {
+      el.innerHTML = '<p class="text-muted text-sm" style="padding:16px 0;">No actions logged yet.</p>';
+      return;
+    }
+    const rows = entries.map((e, i) => {
+      const d = new Date(e.ts);
+      const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});
+      const timeStr = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+      const actionColor = e.action.includes('Deleted') ? 'var(--danger)'
+        : e.action.includes('Added') || e.action.includes('Import') ? 'var(--green)'
+        : e.action === 'Login' ? 'var(--blue)'
+        : e.action === 'Logout' ? 'var(--muted)'
+        : 'var(--text)';
+      return `<tr>
+        <td class="text-muted text-xs">${entries.length - i}</td>
+        <td class="text-sm" style="white-space:nowrap;">${dateStr}</td>
+        <td class="text-sm text-muted" style="white-space:nowrap;">${timeStr}</td>
+        <td><span style="font-weight:600;color:${actionColor};font-size:0.85rem;">${e.action}</span></td>
+        <td class="text-sm">${e.detail||''}</td>
+        <td class="text-sm text-muted">${e.admin||''}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Date</th><th>Time</th><th>Action</th><th>Detail</th><th>Admin</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
+  function clearAuditLog() {
+    if (!confirm('Clear all audit log entries? This cannot be undone.')) return;
+    AssetLog.audit.clear();
+    renderAuditLog();
+    showToast('Audit log cleared.');
+  }
+
+
+</script>
+</body>
+</html>

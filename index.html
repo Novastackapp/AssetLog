@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AssetLog &mdash; Check Out Assets</title>
+<link rel="stylesheet" href="styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='5' y='3' width='14' height='18' rx='2' fill='%230D1B2A'/><path d='M9 3v2a2 2 0 0 0 4 0V3' fill='%230D1B2A' stroke='white' stroke-width='1.5'/><path d='M9 12l2 2 4-4' fill='none' stroke='%2322C55E' stroke-width='2' stroke-linecap='round'/></svg>"/>
+<style>
+  .main-content { padding: 36px 0 60px; }
+  .section-title { font-size: 1rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 20px; }
+  .checkout-confirmed { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-radius: var(--radius-sm); padding: 16px; margin-top: 16px; }
+  .confirmed-row { display: flex; justify-content: space-between; font-size: 0.88rem; }
+  .confirmed-row span:first-child { color: var(--muted); }
+  .confirmed-row span:last-child  { font-weight: 600; }
+  .asset-checkout-banner { background: var(--green-light); border: 1.5px solid var(--green); border-radius: var(--radius-sm); padding: 12px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .asset-checkout-banner .asset-name-lg { font-weight: 700; font-size: 1rem; }
+  .asset-checkout-banner .asset-id-sm   { font-size: 0.8rem; color: var(--muted); }
+  .step-indicator { display: flex; align-items: center; margin-bottom: 24px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+  .step-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--border); color: var(--muted); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+  .step.active .step-dot { background: var(--blue); color: white; }
+  .step.done   .step-dot { background: var(--green); color: white; }
+  .step.active { color: var(--blue); }
+  .step.done   { color: var(--green); }
+  .step-line   { flex: 1; height: 2px; background: var(--border); min-width: 20px; }
+  .step-line.done { background: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="3" width="14" height="18" rx="2"/>
+          <path d="M9 3v2a2 2 0 0 0 4 0V3"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text"><span class="asset">Asset</span><span class="log">Log</span></div>
+        <div class="logo-tag">Track Today. Manage Better.</div>
+      </div>
+    </a>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="btn btn-outline btn-sm" onclick="openReturnModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Return Asset
+      </button>
+      <a href="admin.html" class="btn btn-dark btn-sm">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+        Admin
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="container">
+    <p id="heroOrgName" style="font-size:1.75rem;font-weight:800;color:rgba(255,255,255,0.95);margin:0 0 6px;letter-spacing:0.4px;min-height:0;"></p>
+    <h1 id="heroTitle">Asset Tracking System</h1>
+    <p>Select an asset below to log your checkout. No account needed.</p>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="main-content">
+  <div class="container">
+    <div class="asset-type-grid" id="typeGrid"></div>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer style="background:var(--primary);color:rgba(255,255,255,.55);text-align:center;padding:18px 20px;font-size:0.78rem;">
+  <span style="color:rgba(255,255,255,.85);font-weight:600;">AssetLog</span> &nbsp;&middot;&nbsp; Track Today. Manage Better.
+  <br/>
+  Developed by <span style="color:var(--gold);font-weight:700;">Naif Almalki</span>
+  <br/>
+  <a href="mailto:naif.almalkisau@gmail.com" style="color:var(--gold);opacity:.75;text-decoration:none;">naif.almalkisau@gmail.com</a>
+</footer>
+
+<!-- MODAL: Pick asset -->
+<div class="modal-overlay hidden" id="assetPickModal" onclick="closeOnOverlay(event,'assetPickModal')">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="pickModalTitle">Select Asset</div>
+        <div class="text-muted text-sm" id="pickModalSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('assetPickModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('checkout')" id="tabCheckout">Check Out</button>
+        <button class="tab-btn" onclick="switchTab('return')" id="tabReturn">Return</button>
+      </div>
+      <div id="panelCheckout" class="tab-panel active">
+        <div class="asset-list" id="availableAssets"></div>
+      </div>
+      <div id="panelReturn" class="tab-panel">
+        <div class="autocomplete-wrap" style="margin-bottom:16px;">
+          <input type="text" class="form-control" id="returnTabSearch"
+            placeholder="Type your name to find your asset..."
+            oninput="searchMyAssets(this.value)"
+            onblur="hideReturnTabAC()"
+            onfocus="returnTabAcSearch(this.value)"/>
+          <div class="autocomplete-list hidden" id="returnTabAcList"></div>
+        </div>
+        <div id="checkedOutAssets">
+          <div class="table-empty" style="padding:28px 0;">
+            <div class="empty-icon">&#x1F50D;</div>
+            <p>Type your name above to see your checked-out assets.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Checkout form -->
+<div class="modal-overlay hidden" id="checkoutModal" onclick="closeOnOverlay(event,'checkoutModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Check Out Asset</div>
+      <button class="modal-close" onclick="closeModal('checkoutModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="step-indicator">
+        <div class="step done"><div class="step-dot">&#x2713;</div></div>
+        <div class="step-line done"></div>
+        <div class="step active"><div class="step-dot">2</div><span>Your Details</span></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-dot">3</div><span>Confirm</span></div>
+      </div>
+      <div class="asset-checkout-banner">
+        <div id="coAssetPhoto" style="font-size:1.6rem;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--white);border-radius:8px;"></div>
+        <div>
+          <div class="asset-name-lg" id="coAssetName"></div>
+          <div class="asset-id-sm" id="coAssetId"></div>
+        </div>
+      </div>
+      <form id="checkoutForm" onsubmit="submitCheckout(event)" autocomplete="off">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Full Name <span style="color:var(--danger)">*</span></label>
+            <div class="autocomplete-wrap">
+              <input type="text" class="form-control" id="coName" placeholder="Enter your full name"
+                required oninput="acSearch(this.value)" onblur="hideAC()" onfocus="acSearch(this.value)"/>
+              <div class="autocomplete-list hidden" id="acList"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Phone Number <span style="color:var(--danger)">*</span></label>
+              <input type="tel" class="form-control" id="coPhone" placeholder="e.g. 0917 123 4567" required/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address <span style="color:var(--danger)">*</span></label>
+              <input type="email" class="form-control" id="coEmail" placeholder="your@email.com" required/>
+            </div>
+          </div>
+          <p class="form-hint" style="display:flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+            Date and time will be recorded automatically.
+          </p>
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="submitBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+            Check Out
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Return by name -->
+<div class="modal-overlay hidden" id="returnModal" onclick="closeOnOverlay(event,'returnModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Return an Asset</div>
+      <button class="modal-close" onclick="closeModal('returnModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Enter your name to find your checked-out assets</label>
+        <div class="autocomplete-wrap">
+          <input type="text" class="form-control" id="returnSearch"
+            placeholder="Type a few letters..."
+            oninput="searchReturnUser(this.value);returnAcSearch(this.value)"
+            onblur="hideReturnAC()"
+            onfocus="returnAcSearch(this.value)"/>
+          <div class="autocomplete-list hidden" id="returnAcList"></div>
+        </div>
+      </div>
+      <div id="returnResults">
+        <p class="text-muted text-sm" style="text-align:center;padding:20px 0;">Click the field above or type your name.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Return confirm -->
+<div class="modal-overlay hidden" id="returnConfirmModal" onclick="closeOnOverlay(event,'returnConfirmModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Confirm Return</div>
+      <button class="modal-close" onclick="closeModal('returnConfirmModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="success-screen" style="padding:16px 0;">
+        <div style="font-size:2.5rem;margin-bottom:12px;" id="rcIcon">&#x1F697;</div>
+        <h3 id="rcAssetName"></h3>
+        <p class="text-muted text-sm" id="rcAssetId" style="margin-top:4px;"></p>
+        <div class="checkout-confirmed" style="margin-top:20px;text-align:left;">
+          <div class="confirmed-row"><span>Checked out by</span><span id="rcUser"></span></div>
+          <div class="confirmed-row"><span>Date taken</span><span id="rcDate"></span></div>
+          <div class="confirmed-row"><span>Time taken</span><span id="rcTime"></span></div>
+          <div class="confirmed-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
+            <span>Time held</span>
+            <span id="rcDuration" style="font-weight:700;color:var(--green);"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('returnConfirmModal')">Cancel</button>
+      <button class="btn btn-primary" id="confirmReturnBtn" onclick="confirmReturn()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Confirm Return
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Checkout success -->
+<div class="modal-overlay hidden" id="successModal" onclick="closeOnOverlay(event,'successModal')">
+  <div class="modal">
+    <div class="modal-body">
+      <div class="success-screen">
+        <div class="success-icon">&#x2713;</div>
+        <h3>Asset Checked Out!</h3>
+        <p class="text-muted" style="margin-top:8px;font-size:0.9rem;" id="successMsg"></p>
+        <div class="checkout-confirmed" id="successDetails"></div>
+        <button class="btn btn-primary btn-full" style="margin-top:24px;" onclick="closeModal('successModal')">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="app.js"></script>
+<script>
+AssetLog.init();
+
+// Load org name into hero
+(function(){
+  var s = AssetLog.settings.get();
+  var el = document.getElementById('heroOrgName');
+  if(el && s.orgName) el.textContent = s.orgName;
+})();
+
+var currentTypeId  = null;
+var selectedAssetId = null;
+var returnRecordId  = null;
+
+function renderTypeGrid() {
+  var grid  = document.getElementById('typeGrid');
+  var types = AssetLog.types.getAll(true);
+  if (!types.length) {
+    grid.innerHTML = '<p class="text-muted" style="text-align:center;padding:40px;">No asset types configured. Contact your admin.</p>';
+    return;
+  }
+  grid.innerHTML = types.map(function(t) {
+    var ta    = AssetLog.assets.getByType(t.id, true);
+    var avail = ta.filter(function(a) { return a.available; }).length;
+    var total = ta.length;
+    var icon  = t.photo
+      ? '<div class="asset-type-icon" style="background:' + t.color + '20;overflow:hidden;padding:0;"><img src="' + t.photo + '" style="width:100%;height:100%;object-fit:cover;border-radius:20px;" onerror="this.parentElement.innerHTML=\'<span>' + t.icon + '</span>\'"/></div>'
+      : '<div class="asset-type-icon" style="background:' + t.color + '20;"><span>' + t.icon + '</span></div>';
+    return '<div class="asset-type-card" onclick="openTypeModal(\'' + t.id + '\')">' + icon +
+      '<div><div class="asset-type-name">' + t.name + '</div><div class="asset-type-desc">' + (t.description || '') + '</div></div>' +
+      '<div class="asset-type-counts">' +
+      '<span class="badge badge-green">' + avail + ' available</span>' +
+      '<span class="badge badge-gray">' + total + ' total</span></div></div>';
+  }).join('');
+}
+
+function openTypeModal(typeId) {
+  currentTypeId = typeId;
+  var type = AssetLog.types.get(typeId);
+  document.getElementById('pickModalTitle').textContent = type.name;
+  document.getElementById('pickModalSub').textContent   = type.description || '';
+  renderAvailableAssets(typeId);
+  switchTab('checkout');
+  showModal('assetPickModal');
+}
+
+function assetPhoto(a, size) {
+  size = size || 52;
+  var type = AssetLog.types.get(a.typeId);
+  var icon = type ? type.icon : '';
+  if (a.photo) {
+    return '<div class="asset-photo" style="width:' + size + 'px;height:' + size + 'px;">' +
+      '<img src="' + a.photo + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent=\'' + icon + '\'"/></div>';
+  }
+  return '<div class="asset-photo" style="width:' + size + 'px;height:' + size + 'px;font-size:' + (size*0.4) + 'px;">' + icon + '</div>';
+}
+
+function renderAvailableAssets(typeId) {
+  var c  = document.getElementById('availableAssets');
+  var aa = AssetLog.assets.getByType(typeId, true).filter(function(a) { return a.available; });
+  if (!aa.length) { c.innerHTML = '<div class="table-empty"><div class="empty-icon">&#x1F4ED;</div><p>No available assets right now.</p></div>'; return; }
+  c.innerHTML = aa.map(function(a) {
+    return '<div class="asset-item available" onclick="openCheckoutForm(\'' + a.id + '\')">' +
+      assetPhoto(a) +
+      '<div class="asset-info"><div class="asset-name">' + a.name + '</div><div class="asset-id">' + a.identifier + '</div>' +
+      (a.notes ? '<div class="text-muted text-xs">' + a.notes + '</div>' : '') +
+      '</div><span class="badge badge-green">Available</span></div>';
+  }).join('');
+}
+
+function openCheckoutForm(assetId) {
+  selectedAssetId = assetId;
+  var a = AssetLog.assets.get(assetId);
+  var t = AssetLog.types.get(a.typeId);
+  var ph = document.getElementById('coAssetPhoto');
+  if (a.photo) { ph.innerHTML = '<img src="' + a.photo + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"/>'; }
+  else { ph.textContent = t ? t.icon : ''; }
+  document.getElementById('coAssetName').textContent = a.name;
+  document.getElementById('coAssetId').textContent   = a.identifier;
+  document.getElementById('checkoutForm').reset();
+  closeModal('assetPickModal');
+  showModal('checkoutModal');
+  setTimeout(function() { document.getElementById('coName').focus(); }, 200);
+}
+
+/* Autocomplete — checkout name field */
+var _act;
+function acSearch(val) {
+  clearTimeout(_act);
+  _act = setTimeout(function() {
+    var list = document.getElementById('acList');
+    var q    = val.trim();
+    var res  = q ? AssetLog.users.search(q) : AssetLog.users.getAll().slice(0, 6);
+    if (!res.length) {
+      list.innerHTML = '<div class="autocomplete-item" style="pointer-events:none;color:var(--muted);font-style:italic;">No saved users yet</div>';
+      list.classList.remove('hidden'); return;
+    }
+    list.innerHTML = res.slice(0, 8).map(function(u) {
+      var re = q ? new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi') : null;
+      var hl = re ? u.name.replace(re, '<strong style="color:var(--green);">$1</strong>') : u.name;
+      var sb = [u.phone, u.email].filter(Boolean).join(' · ') || 'No contact info';
+      return '<div class="autocomplete-item" onmousedown="fillUser(\'' + encodeURIComponent(JSON.stringify({name:u.name,phone:u.phone,email:u.email})) + '\')">' +
+        '<div class="ac-name">' + hl + '</div><div class="ac-sub">' + sb + '</div></div>';
+    }).join('');
+    list.classList.remove('hidden');
+  }, 50);
+}
+function fillUser(enc) {
+  var u = JSON.parse(decodeURIComponent(enc));
+  document.getElementById('coName').value  = u.name;
+  document.getElementById('coPhone').value = u.phone || '';
+  document.getElementById('coEmail').value = u.email || '';
+  document.getElementById('acList').classList.add('hidden');
+  var nx = !u.phone ? 'coPhone' : !u.email ? 'coEmail' : null;
+  if (nx) setTimeout(function() { document.getElementById(nx).focus(); }, 50);
+}
+function hideAC() { setTimeout(function() { document.getElementById('acList').classList.add('hidden'); }, 200); }
+
+/* Autocomplete — return modal */
+var _rat;
+function returnAcSearch(val) {
+  clearTimeout(_rat);
+  _rat = setTimeout(function() {
+    var list = document.getElementById('returnAcList');
+    var q    = val.trim();
+    var res  = q ? AssetLog.users.search(q) : AssetLog.users.getAll().slice(0, 6);
+    if (!res.length) { list.classList.add('hidden'); return; }
+    list.innerHTML = res.slice(0, 8).map(function(u) {
+      var re = q ? new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi') : null;
+      var hl = re ? u.name.replace(re, '<strong style="color:var(--green);">$1</strong>') : u.name;
+      return '<div class="autocomplete-item" onmousedown="selReturnUser(\'' + u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+        '<div class="ac-name">' + hl + '</div><div class="ac-sub">' + ([u.phone,u.email].filter(Boolean).join(' · ')||'No contact info') + '</div></div>';
+    }).join('');
+    list.classList.remove('hidden');
+  }, 50);
+}
+function selReturnUser(name) {
+  document.getElementById('returnSearch').value = name;
+  document.getElementById('returnAcList').classList.add('hidden');
+  searchReturnUser(name);
+}
+function hideReturnAC() { setTimeout(function() { document.getElementById('returnAcList').classList.add('hidden'); }, 200); }
+
+/* Autocomplete — return tab inside pick modal */
+var _rtat;
+function returnTabAcSearch(val) {
+  clearTimeout(_rtat);
+  _rtat = setTimeout(function() {
+    var list = document.getElementById('returnTabAcList');
+    var q    = val.trim();
+    var res  = q ? AssetLog.users.search(q) : AssetLog.users.getAll().slice(0, 6);
+    if (!res.length) { list.classList.add('hidden'); return; }
+    list.innerHTML = res.slice(0, 8).map(function(u) {
+      var re = q ? new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi') : null;
+      var hl = re ? u.name.replace(re, '<strong style="color:var(--green);">$1</strong>') : u.name;
+      return '<div class="autocomplete-item" onmousedown="selReturnTabUser(\'' + u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+        '<div class="ac-name">' + hl + '</div><div class="ac-sub">' + ([u.phone,u.email].filter(Boolean).join(' · ')||'No contact info') + '</div></div>';
+    }).join('');
+    list.classList.remove('hidden');
+  }, 50);
+}
+function selReturnTabUser(name) {
+  document.getElementById('returnTabSearch').value = name;
+  document.getElementById('returnTabAcList').classList.add('hidden');
+  searchMyAssets(name);
+}
+function hideReturnTabAC() { setTimeout(function() { document.getElementById('returnTabAcList').classList.add('hidden'); }, 200); }
+
+function searchMyAssets(name) {
+  var c = document.getElementById('checkedOutAssets');
+  var q = name.trim();
+  if (!q) {
+    c.innerHTML = '<div class="table-empty" style="padding:28px 0;"><div class="empty-icon">&#x1F50D;</div><p>Type your name above.</p></div>';
+    return;
+  }
+  var active = AssetLog.records.getActive().filter(function(r) {
+    return r.userName.toLowerCase().includes(q.toLowerCase()) && r.assetTypeId === currentTypeId;
+  });
+  if (!active.length) {
+    c.innerHTML = '<div class="table-empty" style="padding:28px 0;"><div class="empty-icon">&#x1F4ED;</div><p>No checked-out assets found for "' + q + '".</p></div>';
+    return;
+  }
+  c.innerHTML = active.map(function(rec) {
+    var a = AssetLog.assets.get(rec.assetId);
+    return '<div class="asset-item checked-out">' + (a ? assetPhoto(a) : '<div class="asset-photo"></div>') +
+      '<div class="asset-info"><div class="asset-name">' + rec.assetName + '</div>' +
+      '<div class="asset-id">' + rec.assetIdentifier + '</div>' +
+      '<div class="asset-user">Taken: ' + rec.dateTaken + ' at ' + rec.timeTaken + '</div></div>' +
+      '<button class="btn btn-primary btn-sm" onclick="openReturnConfirm(\'' + rec.id + '\')">Return</button></div>';
+  }).join('');
+}
+
+/* Submit checkout */
+function submitCheckout(e) {
+  e.preventDefault();
+  var name  = document.getElementById('coName').value.trim();
+  var phone = document.getElementById('coPhone').value.trim();
+  var email = document.getElementById('coEmail').value.trim();
+  if (!name || !phone || !email) { showToast('Please fill all fields.', 'error'); return; }
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Checking out...';
+  setTimeout(function() {
+    var rec = AssetLog.records.checkout(selectedAssetId, { name: name, phone: phone, email: email });
+    btn.disabled = false;
+    btn.innerHTML = 'Check Out';
+    if (!rec) { showToast('Asset is no longer available.', 'error'); return; }
+    closeModal('checkoutModal');
+    document.getElementById('successMsg').textContent = 'You have successfully checked out ' + rec.assetName + '.';
+    document.getElementById('successDetails').innerHTML =
+      '<div class="confirmed-row"><span>Asset</span><span>' + rec.assetName + '</span></div>' +
+      '<div class="confirmed-row"><span>ID / Plate</span><span>' + rec.assetIdentifier + '</span></div>' +
+      '<div class="confirmed-row"><span>Checked out by</span><span>' + rec.userName + '</span></div>' +
+      '<div class="confirmed-row"><span>Date</span><span>' + rec.dateTaken + '</span></div>' +
+      '<div class="confirmed-row"><span>Time</span><span>' + rec.timeTaken + '</span></div>';
+    showModal('successModal');
+    renderTypeGrid();
+  }, 400);
+}
+
+/* Return flow */
+function openReturnModal() {
+  document.getElementById('returnSearch').value = '';
+  document.getElementById('returnResults').innerHTML = '<p class="text-muted text-sm" style="text-align:center;padding:20px 0;">Click the field above or type your name.</p>';
+  document.getElementById('returnAcList').classList.add('hidden');
+  showModal('returnModal');
+  setTimeout(function() { var i = document.getElementById('returnSearch'); i.focus(); returnAcSearch(''); }, 200);
+}
+
+function searchReturnUser(val) {
+  var c = document.getElementById('returnResults');
+  if (!val.trim()) {
+    c.innerHTML = '<p class="text-muted text-sm" style="text-align:center;padding:20px 0;">Click the field above or type your name.</p>';
+    return;
+  }
+  var active = AssetLog.records.getActive().filter(function(r) {
+    return r.userName.toLowerCase().includes(val.toLowerCase());
+  });
+  if (!active.length) { c.innerHTML = '<div class="table-empty"><div class="empty-icon">&#x1F50D;</div><p>No checked-out assets found for that name.</p></div>'; return; }
+  c.innerHTML = active.map(function(r) {
+    var a = AssetLog.assets.get(r.assetId);
+    var t = a ? AssetLog.types.get(a.typeId) : null;
+    return '<div class="asset-item" style="margin-bottom:8px;">' +
+      '<div class="asset-photo" style="font-size:1.4rem;">' + (t ? t.icon : '') + '</div>' +
+      '<div class="asset-info"><div class="asset-name">' + r.assetName + '</div><div class="asset-id">' + r.assetIdentifier + '</div>' +
+      '<div class="asset-user">Taken: ' + r.dateTaken + ' at ' + r.timeTaken + '</div></div>' +
+      '<button class="btn btn-primary btn-sm" onclick="openReturnConfirm(\'' + r.id + '\')">Return</button></div>';
+  }).join('');
+}
+
+function openReturnConfirm(recordId) {
+  var rec = AssetLog.records.get(recordId);
+  var a   = AssetLog.assets.get(rec.assetId);
+  var t   = a ? AssetLog.types.get(a.typeId) : null;
+  returnRecordId = recordId;
+  document.getElementById('rcIcon').textContent      = t ? t.icon : '';
+  document.getElementById('rcAssetName').textContent = rec.assetName;
+  document.getElementById('rcAssetId').textContent   = rec.assetIdentifier;
+  document.getElementById('rcUser').textContent      = rec.userName;
+  document.getElementById('rcDate').textContent      = rec.dateTaken;
+  document.getElementById('rcTime').textContent      = rec.timeTaken;
+  document.getElementById('rcDuration').textContent  = AssetLog.calcDuration(rec.createdAt, null);
+  closeModal('returnModal');
+  closeModal('assetPickModal');
+  showModal('returnConfirmModal');
+}
+
+function confirmReturn() {
+  if (!returnRecordId) return;
+  var btn = document.getElementById('confirmReturnBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Returning...';
+  setTimeout(function() {
+    var rec = AssetLog.records.returnAsset(returnRecordId);
+    btn.disabled = false; btn.innerHTML = 'Confirm Return';
+    returnRecordId = null;
+    closeModal('returnConfirmModal');
+    renderTypeGrid();
+    showToast(rec.assetName + ' returned — held for ' + AssetLog.calcDuration(rec.createdAt, rec.returnedAt) + '.', 'success');
+  }, 350);
+}
+
+/* Tab switch */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  if (!currentTypeId) return;
+  if (tab === 'checkout') {
+    renderAvailableAssets(currentTypeId);
+  } else {
+    document.getElementById('returnTabSearch').value = '';
+    document.getElementById('returnTabAcList').classList.add('hidden');
+    document.getElementById('checkedOutAssets').innerHTML =
+      '<div class="table-empty" style="padding:28px 0;"><div class="empty-icon">&#x1F50D;</div><p>Type your name above.</p></div>';
+    setTimeout(function() { var i = document.getElementById('returnTabSearch'); i.focus(); returnTabAcSearch(''); }, 100);
+  }
+}
+
+/* Modal helpers */
+function showModal(id) { document.getElementById(id).classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  if (!document.querySelectorAll('.modal-overlay:not(.hidden)').length) document.body.style.overflow = '';
+}
+function closeOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
+
+/* Toast */
+function showToast(msg, type) {
+  type = type || 'info';
+  var c = document.getElementById('toastContainer');
+  var t = document.createElement('div');
+  t.className = 'toast toast-' + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(function(){ t.classList.add('show'); }, 10);
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 3000);
+}
+
+renderTypeGrid();
+</script>
+</body>
+</html>
